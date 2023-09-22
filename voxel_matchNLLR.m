@@ -1,4 +1,4 @@
-function [KSP2a_RECON,ARG] = voxel_matchNLLR(KSP2a, I_M, ARG, mask) %make mask = 1s out of the function if not provided
+function [KSP2a_RECON,ARG] = voxel_matchNLLR(KSP2a, ARG, mask) %make mask = 1s out of the function if not provided
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MASK
@@ -102,16 +102,16 @@ for s = 1:step % denoise one chunk per time
         end
         
         disp(['Estimating similarities chunk ' num2str(s) ' of ' num2str(step)]);
-        distances         = knnsearch(brain(:,tp),references(:,tp),'K',patch_size1,'Distance','euclidean');
+        distances         = knnsearch(abs(brain(:,tp)),abs(references(:,tp)),'K',patch_size1,'Distance','euclidean');
         similars_idx_full = brain_idx(distances);
         patch_size2       = tune_patchsize(patch_size1,timeseries,similars_idx_full,matdim,ARG); % finetune patch size
         similars_idx_cut  = similars_idx_full(:,1:patch_size2);
     else
         disp(['Estimating similarities chunk ' num2str(s) ' of ' num2str(step)]);
-        distances         = knnsearch(brain,references,'K',patch_size2,'Distance','euclidean'); %Indexes in VEC
+        distances         = knnsearch(abs(brain(:,tp)),abs(references(:,tp)),'K',patch_size2,'Distance','euclidean'); %Indexes in VEC
         similars_idx_cut  = brain_idx(distances); %Indexes in complete image\
     end
-    
+    disp(['Tuned patchsize = ' num2str(patch_size2)])
     if ARG.speed_factor > 1 % reinclude omitted voxels due to speeding up
         miss = ismember(brain_idx,similars_idx_cut);
         zrs  = find(miss==0);
@@ -125,7 +125,7 @@ for s = 1:step % denoise one chunk per time
             brain_iz = brain_iz_vals;
         end
         
-        distances_iz    = knnsearch(brain(:,tp),brain_iz(:,tp),'K',patch_size2,'Distance','euclidean'); %Indexes in VEC
+        distances_iz    = knnsearch(abs(brain(:,tp)),abs(brain_iz(:,tp)),'K',patch_size2,'Distance','euclidean'); %Indexes in VEC
         similars_iz     = brain_idx(distances_iz);
         similars_all    = cat(1,similars_idx_cut,similars_iz);
         

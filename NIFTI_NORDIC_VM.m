@@ -474,7 +474,7 @@ else
         brain_mask = [];
     end
 
-    [IMG2,ARG] = voxel_matchNLLR(KSP2,I_M,ARG,brain_mask);
+    [IMG2,ARG] = voxel_matchNLLR(KSP2,ARG,brain_mask);
     disp('completing NORDIC with non-local voxel matching (VM_NORDIC)...')
 end
 
