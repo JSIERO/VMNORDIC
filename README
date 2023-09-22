@@ -1,0 +1,57 @@
+Voxel_Matching NORDIC (VM-NORDIC) README
+
+VM-NORDIC exploits the similarities between the time series of non-local 
+voxels to construct highly homogenous low-rank patches, leading to a more effective denoising due to the higher signal redundancy.
+
+The launching of VM-NORDIC is fairly similar to NIFTI_NORDIC.
+Before lunching VM-NORDIC, the user should include the following four additional parameters:
+
+
+1) ARG.voxel_matching = 1;              This option "switches on" VM-NORDIC
+
+2) ARG.mask = 0 or 1.        With 1, the user has to provide a 3D binary brain mask nifti file as last input to NORDIC (fn_brainmask_in). 
+                                        With 0, VMNORDIC uses an empty mask (1s)
+   
+3) ARG.speed_factor = val               val must be a positive integer larger than zero (suggested between 1 and 10). 
+                                        This option allows to speed up the denoising without notable effects on the denoising quality. 
+
+4) ARG.timepoints         = [n1:n2,n3:n4]; Specify timepoints (dynamics) to use for similarity estimation. Useful if you DO NOT want to base the similarity
+                                           between voxels on their entire timecourse but on a specific period of time (i.e. active or resting period).
+                                           If empty ( = []), all timepoints will be used
+                                                
+Example VM-NORDIC call: 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+ARG.DIRIN              = '/Fridge/users/jeroen/FMRI/NORDIC/MM034_BOLD/';
+ARG.DIROUT             = ARG.DIRIN;
+fn_magn_in             = [ARG.DIRIN 'name_magnitude_file.nii.gz'];
+fn_phase_in            = [ARG.DIRIN 'name_phase_file.nii.gz'];
+fn_brainmask_in        = [ARG.DIRIN 'name_brainmask_file.nii.gz'];
+fn_out                 = [ARG.DIROUT 'NORDIC_VM_'];
+ARG.phase_filter_width = 10;
+ARG.save_gfactor_map   = 1;
+ARG.save_add_info      = 1;
+ARG.gfactorcorr        = 1;
+ARG.mask               = 1; % = 1 the user provides a 3D brain mask. = 0 no mask is provided and VM_NORDIC uses a empty  mask
+ARG.speed_factor       = 5; % integer between 1 and 10. Speeds up the denoising
+ARG.temporal_phase     = 1;
+
+ARG.timepoints         = [1:20,50:74]; % selectionof specific timepoint to base similarity on for VM-NORDIC
+
+ARG.voxel_matching     = 1; % = 1 activate VM_NORDIC
+ARG.magnitude_only     = 1;
+ARG.timepoints         = [];
+ARG.make_complex_nii   = 1 - ARG.magnitude_only ; % change when ARG.magnitude_only is ALTERED
+[MAGN,PHASE,GFACTOR,ARG] = NIFTI_NORDIC_VM(fn_magn_in,fn_phase_in,fn_out,ARG,fn_brainmask_in);
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+There is no need to specify fn_brainmask_in if ARG.mask = 0;
+
+The output image will be the denoised and masked input image. 
+
+Alessandro Nigi, Jeroen Siero
+09/2023
