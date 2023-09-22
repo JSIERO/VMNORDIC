@@ -1,4 +1,4 @@
-function [KSP2a_RECON,ARG] = voxel_matchNLLR(KSP2a, ARG, mask) %make mask = 1s out of the function if not provided
+function [KSP2a_RECON, ARG] = voxel_matchNLLR(KSP2a, ARG, mask) %make mask = 1s out of the function if not provided
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MASK
@@ -100,8 +100,9 @@ for s = 1:step % denoise one chunk per time
         else                         % correction for datasets with short timeseries
             patch_size1 = ceil(nTimepoints_forsimilarity*(((length(brain)/(round(length(brain),1,'significant')*100))*nTimepoints_forsimilarity)^(-2.7)));
         end
-        
-        disp(['Estimating similarities chunk ' num2str(s) ' of ' num2str(step)]);
+        ARG.patch_size1_initial_VMNORDIC= patch_size1;
+        disp(['Initial patchsize = ' num2str(patch_size1) ' = ' num2str(round(patch_size1,1)) ' ^(1/3)'])
+       disp(['Estimating similarities chunk ' num2str(s) ' of ' num2str(step)]);
         distances         = knnsearch(abs(brain(:,tp)),abs(references(:,tp)),'K',patch_size1,'Distance','euclidean');
         similars_idx_full = brain_idx(distances);
         patch_size2       = tune_patchsize(patch_size1,timeseries,similars_idx_full,matdim,ARG); % finetune patch size
@@ -111,7 +112,8 @@ for s = 1:step % denoise one chunk per time
         distances         = knnsearch(abs(brain(:,tp)),abs(references(:,tp)),'K',patch_size2,'Distance','euclidean'); %Indexes in VEC
         similars_idx_cut  = brain_idx(distances); %Indexes in complete image\
     end
-    disp(['Tuned patchsize = ' num2str(patch_size2)])
+    ARG.patch_size2_tuned_VMNORDIC= patch_size2;
+    disp(['Tuned patchsize = ' num2str(patch_size2) ' = ' num2str(round(patch_size2,1)) ' ^(1/3)'])
     if ARG.speed_factor > 1 % reinclude omitted voxels due to speeding up
         miss = ismember(brain_idx,similars_idx_cut);
         zrs  = find(miss==0);
