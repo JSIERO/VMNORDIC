@@ -1,5 +1,5 @@
 Voxel_Matching NORDIC (VM-NORDIC) README
-
+% Alessandro Nigi, Jeroen Siero 2023
 VM-NORDIC exploits the similarities between the time series of non-local 
 voxels to construct highly homogenous low-rank patches, leading to a more effective denoising due to the higher signal redundancy.
 
