@@ -151,8 +151,8 @@ if ~isfield(ARG,'voxel_matching')
     ARG.voxel_matching = [];
 end
 
-if ~isfield(ARG,'mask_background')
-    ARG.mask_background = 0; %
+if ~isfield(ARG,'mask')
+    ARG.mask = 0; %
 end
 
 if ~isfield(ARG,'speed_factor')
