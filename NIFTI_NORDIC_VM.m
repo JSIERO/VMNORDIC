@@ -1,11 +1,11 @@
-function [MAGN,PHASE,GFACTOR,ARG]=NIFTI_NORDIC_VM_JCWS(fn_magn_in,fn_phase_in,fn_out,ARG,fn_brainmask_in)
+function [MAGN,PHASE,GFACTOR,ARG]=NIFTI_NORDIC_VM(fn_magn_in,fn_phase_in,fn_out,ARG,fn_brainmask_in)
 % fMRI
 % fn_magn_in = 'name.nii.gz';
 % fn_phase_in = 'name2.nii.gz';
 % fn_brainmask_in = 'name3.nii.gz';
 % fn_out = ['NORDIC_' fn_magn_in(1:end-7)];
 % ARG.voxel_matching = 1;
-% ARG.mask_background = 1;
+% ARG.mask = 1;
 % ARG.speed_factor = 5;
 % NIFTI_NORDIC_VM(fn_magn_in,fn_phase_in,fn_out,ARG,fn_brainmask_in)
 %
@@ -468,7 +468,7 @@ if ARG.voxel_matching ~= 1
     disp('completing NORDIC ...')
 else
     disp('starting NORDIC with non-local voxel matching (VM_NORDIC)...')
-    if ARG.mask_background == 0
+    if ARG.mask == 1
         brain_mask = single(niftiread(fn_brainmask_in));
     else
         brain_mask = [];
