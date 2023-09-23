@@ -478,6 +478,9 @@ else
 
     [IMG2,ARG] = voxel_matchNLLR(KSP2,ARG,brain_mask);
     disp('completing NORDIC with non-local voxel matching (VM_NORDIC)...')
+    
+    niftiwrite(single(ARG.weight_image),[fn_out 'weightmap.nii'],'Compressed',true)
+
 end
 
 if isfield(ARG,'save_residual_matlab')
