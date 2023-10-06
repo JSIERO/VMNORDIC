@@ -1,35 +1,35 @@
-function [KSP2a_RECON, ARG] = voxel_matchNLLR(KSP2a, ARG, mask) %make mask = 1s out of the function if not provided
+function [IMGDATA_denoised, ARG] = voxel_matchNLLR(IMGDATA, ARG) %make mask = 1s out of the function if not provided
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % MASK
 
-noisy_masked  = zeros(size(KSP2a));
-imdim         = size(KSP2a);
-ARG.weight_image = zeros(imdim(1:3)); % store the visiting map
+IMGDATA_masked  = zeros(size(IMGDATA));
+DIMS_IMG         = size(IMGDATA);
+ARG.visitingmap = zeros(DIMS_IMG(1:3)); % store the visiting map
 
 if ARG.mask == 1
-    mask(mask==0) = NaN;    
-    noisy_masked = KSP2a.*mask;
-elseif ARG.mask == 0 % no user supplied mask, greate empty mask of size data  
-    mask          = ones(imdim(1:3));        
-    noisy_masked = KSP2a.*mask;    
+    mask = single(niftiread(ARG.fn_brainmask_in)); % load mask nifti
+    mask(mask==0) = NaN;
+    IMGDATA_masked = IMGDATA.*mask;
+elseif ARG.mask == 0 % no user supplied mask, greate empty mask of size data
+    mask          = ones(DIMS_IMG(1:3));
+    IMGDATA_masked = IMGDATA.*mask;
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % GENERATE CHUNKS
 
-imdim         = size(noisy_masked);
-Nvoxels_brain = length(find(~isnan(noisy_masked(:))));
+Nvoxels_brain = length(find(~isnan(IMGDATA_masked(:))));
 max_voxels    = 5e6;
 step          = round(Nvoxels_brain/max_voxels);  % step between slices per chunk
-chunk_size    = floor(size(noisy_masked,3)/step); % amount of slices per chunk
+chunk_size    = floor(size(IMGDATA_masked,3)/step); % amount of slices per chunk
 
 % ensure chunks are of similar sizes
-if chunk_size > round(imdim(3)*0.6) && chunk_size < imdim(3)
-    while chunk_size > round(imdim(3)*0.6)
+if chunk_size > round(DIMS_IMG(3)*0.6) && chunk_size < DIMS_IMG(3)
+    while chunk_size > round(DIMS_IMG(3)*0.6)
         max_voxels = max_voxels - 5e5;
         step       = round(Nvoxels_brain/max_voxels);
-        chunk_size = floor(size(noisy_masked,3)/step);
+        chunk_size = floor(size(IMGDATA_masked,3)/step);
     end
 end
 
@@ -39,31 +39,31 @@ images = cell(1,step);
 
 % make chunks
 for s = 1:step
-    img         = noisy_masked(:,:,s:step:end-(step-s),:);
-    slices(s,:) = s:step:size(noisy_masked,3)-(step-s);
-    Nvoxels_img = reshape(img(:,:,:,1),prod(imdim(1:2))*chunk_size,1);
+    img         = IMGDATA_masked(:,:,s:step:end-(step-s),:);
+    slices(s,:) = s:step:size(IMGDATA_masked,3)-(step-s);
+    Nvoxels_img = reshape(img(:,:,:,1),prod(DIMS_IMG(1:2))*chunk_size,1);
     len(s,:)    = length(Nvoxels_img(~isnan(Nvoxels_img(:))));
     images{1,s} = img;
 end
 
 % if some slices are left out, reinclude them in smaller chunks
-if imdim(3)/step ~= round(imdim(3)/step)
-    left          = abs(chunk_size*step - imdim(3));
+if DIMS_IMG(3)/step ~= round(DIMS_IMG(3)/step)
+    left          = abs(chunk_size*step - DIMS_IMG(3));
     [~,short_idx] = mink(len,left);
-    missing       = find(~ismember(1:imdim(3),slices(:)));
+    missing       = find(~ismember(1:DIMS_IMG(3),slices(:)));
     for i = 1:left
         s_idx              = short_idx(i);
         short              = images{s_idx};
-        short(:,:,end+1,:) = noisy_masked(:,:,missing(end-(i-1)),:);
+        short(:,:,end+1,:) = IMGDATA_masked(:,:,missing(end-(i-1)),:);
         images{1,s_idx}    = short;
         slices(short_idx(i),chunk_size+1) = missing(end-(i-1));
     end
 end
 
 % release some memory
-clear noisy_masked KSP2a mask short img
+clear IMGDATA_masked IMGDATA mask short img
 
-KSP2a_RECON = zeros(imdim);
+IMGDATA_denoised = zeros(DIMS_IMG);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PROCESS INDIVIDUAL CHUNKS
@@ -79,10 +79,10 @@ for s = 1:step % denoise one chunk per time
     
     % timepoints to use for similarity estimation
     if isempty(ARG.timepoints)
-        tp = logical(ones(1,matdim(4)));
-
+        tp = true(1,matdim(4));
+        
     else
-        tp = ismember(1:matdim(4),ARG.timepoints);     
+        tp = ismember(1:matdim(4),ARG.timepoints);
     end
     
     if ARG.magnitude_only == 0 % concatenate real and imaginary data in 1 vector, i.e. double the timepoints)
@@ -91,15 +91,15 @@ for s = 1:step % denoise one chunk per time
     end
     
     % select reference voxels in chunk, jumping every ARG.speed_factor for speed
-    chunk_brain_timeseries_refs = chunk_brain_timeseries(1:ARG.speed_factor:end,:); 
+    chunk_brain_timeseries_refs = chunk_brain_timeseries(1:ARG.speed_factor:end,:);
     
     nTimepoints_forsimilarity = length(tp);
     
     if s == 1
         if nTimepoints_forsimilarity >= 40 || nTimepoints_forsimilarity <= 500
-            patchsize_initial = nTimepoints_forsimilarity*11; % initial large guess for patch size, using the NORDIC M(spatial) x Q(time) = 11 ratio        
-        elseif nTimepoints_forsimilarity > 500 
-            patchsize_initial = min(nTimepoints_forsimilarity*11, 11^3); % initial guess for patch size for very long timeseries (max a 11^3 spatial patchsize is used as in NORDIC)            
+            patchsize_initial = nTimepoints_forsimilarity*11; % initial large guess for patch size, using the NORDIC M(spatial) x Q(time) = 11 ratio
+        elseif nTimepoints_forsimilarity > 500
+            patchsize_initial = min(nTimepoints_forsimilarity*11, 11^3); % initial guess for patch size for very long timeseries (max a 11^3 spatial patchsize is used as in NORDIC)
         elseif nTimepoints_forsimilarity < 40 % patch_size_initial  correction for datasets with small amount of timepoints < 40
             patchsize_initial = ceil(nTimepoints_forsimilarity*(((size(chunk_brain_timeseries,1))/(round(size(chunk_brain_timeseries,1),1,'significant')*100))*nTimepoints_forsimilarity)^(-2.7));
         end
@@ -113,13 +113,13 @@ for s = 1:step % denoise one chunk per time
         Idx_similar_neighbours = knnsearch(abs(chunk_brain_timeseries(:,tp)), abs(chunk_brain_timeseries_refs(:,tp)), 'K', patchsize_initial, 'Distance', 'euclidean');
         Idx_similar_full = Idx_chunk_brain_timeseries(Idx_similar_neighbours); % find the corresponding indices of the chunk dataset
         
-        % finetune patch size  
-        patchsize_tuned  = tune_patchsize(patchsize_initial, chunk_all_timeseries, Idx_similar_full, matdim, ARG);        
+        % finetune patch size
+        patchsize_tuned  = tune_patchsize(patchsize_initial, chunk_all_timeseries, Idx_similar_full, matdim, ARG);
         Idx_similar_patchsize_tuned  = Idx_similar_full(:,1:patchsize_tuned);  % select only the first patchsize tuned amount of similar voxels
         
         ARG.patch_size_tuned_VMNORDIC = patchsize_tuned;
         disp(['Tuned patchsize = ' num2str(patchsize_tuned) ' = ' num2str(round(patchsize_tuned^(1/3),1)) ' ^(1/3)'])
-    
+        
     elseif s > 1
         disp(['Estimating similarities chunk ' num2str(s) ' of ' num2str(step)]);
         Idx_similar_neighbours       = knnsearch(abs(chunk_brain_timeseries(:,tp)),abs(chunk_brain_timeseries_refs(:,tp)),'K',patchsize_tuned,'Distance','euclidean'); %Indexes in VEC
@@ -143,7 +143,7 @@ for s = 1:step % denoise one chunk per time
         Idx_similar_neighbours_full_iz = Idx_chunk_brain_timeseries(Idx_similar_neighbours_iz);  % find the corresponding indices of the chunk dataset
         if size(Idx_similar_neighbours_full_iz,2) == 1 % transpose indices array, as when only 1 voxel is found the above line flips the output
             Idx_similar_neighbours_full_iz = Idx_similar_neighbours_full_iz';
-        end        
+        end
         Idx_similar_neighbours_all     = cat(1,Idx_similar_patchsize_tuned,Idx_similar_neighbours_full_iz);
         
         if isfield(ARG,'save_add_info')
@@ -170,7 +170,7 @@ for s = 1:step % denoise one chunk per time
         thr = thr + St(end,end);
     end
     thr = thr/10;    % take the average of thresholds
-     
+    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % SVT
     
@@ -216,12 +216,12 @@ for s = 1:step % denoise one chunk per time
     img_final = img_out./wei_out;
     
     position = nonzeros(slices(s,:));
-    KSP2a_RECON(:,:,position,:) = img_final;    
-    ARG.weight_image(:,:,position) = squeeze(wei_out(:,:,:,1));
+    IMGDATA_denoised(:,:,position,:) = img_final;
+    ARG.visitingmap(:,:,position) = squeeze(wei_out(:,:,:,1));
     % release some more memory
     clear img_out wei_out distances Idx_similar_neighbours_all similars_idx_full ...
-        similars_idx_cut similars_iz img_vec wei_vec patches img_final   
-
+        similars_idx_cut similars_iz img_vec wei_vec patches img_final
+    
 end
 
 
